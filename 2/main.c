@@ -1,16 +1,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <dirent.h>
 #include <errno.h>
 #include <ctype.h>
 #include "list.h"
 
-#define TITLES_SIZE   8
+#define ARTICLES_NUM 		8
+#define ARTICLES_FOLDER "articles"
 
-static list *titles = NULL;
-static list *keys   = NULL;
-static list *title_keys[TITLES_SIZE];
+static list *articles = NULL;
+static list *words   = NULL;
+static list *article_words[ARTICLES_NUM];
+static int   article_files_num[ARTICLES_NUM];
+
+FILE *tmpfp;
 
 size_t 
 file_size(FILE *fp)
@@ -41,12 +46,13 @@ separatewords(char *text)
 {
 	list *l;
 	char *word;
-	char *sep = " -,.?:/@()<>[]{}\'\"\t\r\n";
+	char *sep = " -_,.?:/@()<>[]{}\'\"\t\r\n";
 
 	l = list_create(type_str);
 
 	for (word = strtok(text, sep); 
-	     word != NULL; word = strtok(NULL, sep)) {
+	     word != NULL; 
+	     word = strtok(NULL, sep)) {
 		if (strlen(word) <= 3)
 			continue;
 		list_append(l, strlower(word));
@@ -55,7 +61,7 @@ separatewords(char *text)
 }
 
 list *
-get_dirs(char *dirpath)
+dir_ls(char *dirpath)
 {
 	DIR *dp;
 	struct dirent *dirp;
@@ -82,193 +88,20 @@ get_dirs(char *dirpath)
 	return l;
 }
 
-int 
-title_count()
+list *
+get_words(char *file)
 {
-	int ret;
-	list *l;
-	l = get_dirs("articles");
-	ret = list_count(l);
-	list_destroy(l);
-	return ret;
-}
-
-int
-file_count()
-{
-	int i, n = 0;
-	list *dirs;
-	list *files;
-	char *path;
-	char *dir;
-
-	dirs = get_dirs("articles");
-	for (i = 0; i < list_count(dirs); i++) {
-		dir = (char *)list_get(dirs, i);
-		path = malloc(strlen(dir) + strlen("articles") + 2);
-		sprintf(path, "%s/%s", "articles", dir);
-		files = get_dirs(path);
-		n += list_count(files);
-		list_destroy(files);
-		free(path);
-	}
-	list_destroy(dirs);
-	return n;
-}
-
-int
-file_classification_count(char *title)
-{
-	int ret;
-	list *l;
-	char *path;
-	path = malloc(strlen(title) + strlen("articles") + 2);
-	sprintf(path, "%s/%s", "articles", title);
-	l = get_dirs(path);
-	ret = list_count(l);
-	list_destroy(l);
-	free(path);
-	return ret;
-}
-
-int
-title_key_get(char *title, char *key)
-{
-	int title_index = list_index(titles, title);
-	int key_index   = list_index(keys, key);
-	if (title_index == -1 || key_index == -1) 
-		return 0;
-	return *(int *)list_get(title_keys[title_index], key_index);
-}
-
-void
-title_key_set(char *title, char *key)
-{
-	int i;
-	int title_index = list_index(titles, title);
-	int key_index   = list_index(keys, key);
-	int v = 0;
-	if (key_index == -1) {
-		list_append(keys, key);
-		for (i = 0; i < TITLES_SIZE; i++) {
-			list_append(title_keys[i], &v);
-		}
-		key_index = 0;
-	}
-	v = *(int *)list_get(title_keys[title_index], key_index);
-	v += 1;
-	list_set(title_keys[title_index], &v, key_index);
-}
-
-int
-training(char *dirpath)
-{
-	int i, j, k;
-	int readn;
-	char *buf;
-	FILE *fp;
-
-	list *dirs;
-	list *files;
-	list *words;
-	char *path;
-	char *dir;
-	char *file;
-	char *filepath;
-
-	dirs = get_dirs("articles");
-	for (i = 0; i < list_count(dirs); i++) {
-		dir = (char *)list_get(dirs, i);
-		printf("title: %s\n", dir);
-		if (strcmp(dir, "alt.bible.prophecy"))
-			continue;
-		path = malloc(strlen(dir) + strlen("articles") + 2);
-		sprintf(path, "%s/%s", "articles", dir);
-		files = get_dirs(path);
-		for (j = 0; j < list_count(files); j++) {
-			file = (char *)list_get(files, j);
-			filepath = malloc(strlen(file) + strlen(dir) + strlen("articles") + 2);
-			sprintf(filepath, "%s/%s/%s", "articles", dir, file);
-			printf(".");
-			fp = fopen(filepath, "r");
-			buf = malloc(file_size(fp) + 1);
-			readn = fread(buf, 1, file_size(fp), fp);
-			buf[readn] = 0;
-			fclose(fp);
-
-			words = separatewords(buf);
-
-			free(buf);
-
-			for (k = 0; k < list_count(words); k++) {
-				title_key_set(dir, list_get(words, k));
-			}
-
-			free(filepath);
-		}
-		printf("\n");
-		list_destroy(files);
-		free(path);
-	}
-	list_destroy(dirs);
-}
-
-int
-key_classification_count(char *dirpath, char *key)
-{
-	return title_key_get(dirpath, key);
-}
-
-float
-pc(char *title)
-{
-	float Nc = file_classification_count(title);
-	float N  = file_count();
-	return Nc/N;
-}
-
-float
-pxc(char *title, char *key)
-{
-	float M   = 0.0f;
-	float Nxc = key_classification_count(title, key);
-	float Nc  = file_classification_count(title);
-	float V   = title_count();
-	return (Nxc + 1) / (Nc + M + V);
-}
-
-float 
-BayesClassifier(list *words, char *title)
-{
-	float zoomFactor = 10.0f;
-	float ret = 1.0f;
-
-	char *word;
-	int i;
-
-	for (i = 0; i < list_count(words); i++) {
-		word = list_get(words, i);
-		ret *= pxc(title, word) * zoomFactor;
-	}
-	return ret *= pc(title);
-}
-
-void
-classify(char *file, char *title)
-{
-	int i;
-	int readn;
-	FILE *fp;
-
-	char *buf;
-	list *dirs;
-	list *words;
+	FILE   *fp;
+	char   *buf;
+	list   *words;
+	size_t  readn;
 
 	if ((fp = fopen(file, "r")) == NULL) {
 		fprintf(stderr, "can't open %s file\n", file);
-		return;
+		exit(1);
 	}
-	buf = malloc(file_size(fp) + 1);
+
+	buf = tmalloc(file_size(fp) + 1);
 	readn = fread(buf, 1, file_size(fp), fp);
 	buf[readn] = 0;
 	fclose(fp);
@@ -276,32 +109,161 @@ classify(char *file, char *title)
 	words = separatewords(buf);
 
 	free(buf);
-	
-	dirs = get_dirs("articles");
-	char *dir;
 
-	int maxn = 2;
-	float temp;
-	float max = 0.0f;
+	return words;
+}
+
+int 
+article_count()
+{
+	return ARTICLES_NUM;
+}
+
+int
+file_count()
+{
+	int i;
+	int ret = 0;
+	for (i = 0; i < article_count(); i++) {
+		ret += article_files_num[i];
+	}
+	return ret;
+}
+
+int
+article_file_count(char *article)
+{
+
+	int article_index = list_index(articles, article);
+	if (article_index != -1) {
+		return article_files_num[article_index];
+	} 
+	return 0;
+}
+
+int
+article_word_get(char *article, char *word)
+{
+	int article_index = list_index(articles, article);
+	int word_index    = list_index(words, word);
+	if (article_index == -1 || word_index == -1)  {
+		return 0;
+	}
+	return *(int *)list_get(article_words[article_index], word_index);
+}
+
+void
+article_word_set(char *article, char *word)
+{
+	int i;
+	int article_index = list_index(articles, article);
+	int word_index    = list_index(words, word);
+	int v = 0;
+	if (word_index == -1) {
+		list_append(words, word);
+		for (i = 0; i < article_count(); i++) {
+			list_append(article_words[i], &v);
+		}
+		word_index = list_index(words, word);
+	}
+	v = *(int *)list_get(article_words[article_index], word_index);
+	v += 1;
+	list_set(article_words[article_index], &v, word_index);
+}
+
+void
+tranining(char *article, char *file)
+{
+	int i;
+	list *words;
+	words = get_words(file);
+	for (i = 0; i < list_count(words); i++) {
+		article_word_set(article, list_get(words, i));
+	}
+	list_destroy(words);
+}
+
+
+int
+article_word_count(char *article, char *word)
+{
+	return article_word_get(article, word);
+}
+
+float
+pc(char *article)
+{
+	float Nc = article_file_count(article);
+	float N  = file_count();
+	return Nc/N;
+}
+
+float
+pxc(char *article, char *word)
+{
+	float M   = 0.0f;
+	float Nxc = article_word_count(article, word);
+	float Nc  = article_file_count(article);
+	float V   = article_count();
+	return (Nxc + 1) / (Nc + M + V);
+}
+
+float 
+BayesClassifier(list *words, char *article)
+{
+	float zoomFactor = 40.0f;
+	float ret = 1.0f;
+
+	char *word;
+	int i;
+
+	for (i = 0; i < list_count(words); i++) {
+		word = list_get(words, i);
+		ret *= pxc(article, word) * zoomFactor;
+	}
+	return ret *= pc(article);
+}
+
+void
+classify(char *file, char *article)
+{
+	int i;
+
+	list *dirs;
+	list *words;
+	
+	float  max  = 0.0f;
+	int    maxn = -1;
+	float  temp;
+	char  *dir;
+
+	dirs = dir_ls(ARTICLES_FOLDER);
+	words = get_words(file);
 
 	for (i = 0; i < list_count(dirs); i++) {
 		dir = list_get(dirs, i);
-		//printf("%-30s ", dir);
-		//printf(" %f\n", BayesClassifier(words, dir));
-		if (((temp = BayesClassifier(words, dir)) - max) > 0.000001) {
+		if (((temp = BayesClassifier(words, dir)) - max) > 0.00000001) {
 			max = temp;
 			maxn = i;
 		}  
 	}
-	printf("%d\n", !strcmp(title, (char *)list_get(dirs, maxn)));
+	printf("article: %s\n", (char *)list_get(dirs, maxn));
+	printf("result: ");
+	if (maxn == -1) {
+		printf("wrong\n\n");
+	}
+	else
+		printf("%s\n\n", strcmp(article, list_get(dirs, maxn)) ?
+		    "wrong" : "right");
 	list_destroy(dirs);
 	list_destroy(words);
 }
 
-int 
-main(void)
+void
+trainingall(char *dirpath)
 {
 	int i, j;
+
 	list *dirs;
 	list *files;
 	char *path;
@@ -309,39 +271,80 @@ main(void)
 	char *file;
 	char *filepath;
 
-	titles = list_create(type_str);
-	keys   = list_create(type_str);
+	int percent = 90;   // 90%
 
-	for (i = 0; i < TITLES_SIZE; i++)
-		title_keys[i] = list_create(type_int);
+	srand(((unsigned int)time(NULL)) | 1);
 
-	dirs = get_dirs("articles");
+	dirs = dir_ls(ARTICLES_FOLDER);
 	for (i = 0; i < list_count(dirs); i++) {
 		dir = (char *)list_get(dirs, i);
-		list_append(titles, dir);
-	}
+		printf("training: %s\n", dir);
+		path = tmalloc(strlen(dir) + strlen(ARTICLES_FOLDER) + 3);
+		sprintf(path, "%s/%s", ARTICLES_FOLDER, dir);
+		files = dir_ls(path);
 
-	training("articles");
+		int article_index = list_index(articles, dir);
+		if (article_index == -1) 
+			continue;
 
-	dirs = get_dirs("articles");
-	for (i = 0; i < list_count(dirs); i++) {
-		dir = (char *)list_get(dirs, i);
-		path = malloc(strlen(dir) + strlen("articles") + 2);
-		sprintf(path, "%s/%s", "articles", dir);
-		printf("dir: %s\n", dir);
-		files = get_dirs(path);
 		for (j = 0; j < list_count(files); j++) {
 			file = (char *)list_get(files, j);
-			filepath = malloc(strlen(file) + strlen(dir) + strlen("articles") + 2);
-			sprintf(filepath, "%s/%s/%s", "articles", dir, file);
-			//printf("%s\n", filepath);
-			classify(filepath, dir);
+			filepath = tmalloc(strlen(file) + strlen(dir) + strlen(ARTICLES_FOLDER) + 2);
+			sprintf(filepath, "%s/%s/%s", ARTICLES_FOLDER, dir, file);
+			if ((rand() % 100) >= percent) {
+				sprintf(filepath, "%s\n", filepath);
+				fwrite(filepath, 1, strlen(filepath), tmpfp);
+				continue;
+			}
+			tranining(dir, filepath);
+			article_files_num[article_index] += 1;
 			free(filepath);
-
 		}
-		return 0;
 		list_destroy(files);
 		free(path);
+	}
+	list_destroy(dirs);
+}
+
+int 
+main(void)
+{
+	int i;
+	list *dirs;
+	char *dir;
+	char file[100];
+
+	articles = list_create(type_str);
+	words    = list_create(type_str);
+
+	for (i = 0; i < article_count(); i++)
+		article_words[i] = list_create(type_int);
+
+	dirs = dir_ls(ARTICLES_FOLDER);
+	for (i = 0; i < list_count(dirs); i++) {
+		dir = (char *)list_get(dirs, i);
+		list_append(articles, dir);
+	}
+
+	if ((tmpfp = fopen("temp.txt", "w+")) == NULL) {
+		fprintf(stderr, "tmpfile() fail\n");
+		exit(1);
+	}
+
+	trainingall(ARTICLES_FOLDER);
+
+	printf("training end\n\n");
+
+	dirs = dir_ls(ARTICLES_FOLDER);
+	fseek(tmpfp, 0, SEEK_SET);
+	
+	char *sep = "/";
+	while (fgets(file, sizeof(file), tmpfp) != NULL) {
+		file[strlen(file) - 1] = 0;
+		printf("file: %s\n", file);
+		char *file2 = strdup(file);
+		strtok(file2, sep);
+		classify(file, strtok(NULL, sep));
 	}
 	list_destroy(dirs);
 

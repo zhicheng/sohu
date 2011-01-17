@@ -6,6 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+void *
+tmalloc(size_t size);
+
+void *
+trealloc(void *mem, size_t size);
+
 typedef enum _type type;
 enum _type {type_str, type_int};
 
