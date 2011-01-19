@@ -244,6 +244,8 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
+	free(type);
+
 	if ((ptr = strstr(buf, "\r\n\r\n")) == NULL) {
 		fprintf(stderr, "wrong mime file\n");
 		exit(1);
