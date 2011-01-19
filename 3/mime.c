@@ -205,7 +205,9 @@ main(int argc, char *argv[])
 {
 	FILE *fp;
 	char *buf;
+	char *type;
 	char *boundary;
+	char *content_type;
 	char *ptr;
 
 	int n;
@@ -232,6 +234,16 @@ main(int argc, char *argv[])
 	n = fread(buf, 1, filesize, fp);
 	buf[n] = 0;
 
+	content_type = mime_get_header_field(buf, "Content-Type");
+
+	type = mime_get_type(content_type);
+
+	// only support multipart type email
+	if (strncmp(type, "multipart", 9)) {
+		fprintf(stderr, "can't support\n");
+		exit(0);
+	}
+
 	if ((ptr = strstr(buf, "\r\n\r\n")) == NULL) {
 		fprintf(stderr, "wrong mime file\n");
 		exit(1);
@@ -243,8 +255,6 @@ main(int argc, char *argv[])
 	part->content_offset = ptr - buf + 4;  /* "\r\n\r\n" */
 	part->content_lines = line_num(buf + part->content_offset);
 
-	char *content_type;
-	content_type = mime_get_header_field(buf, "Content-Type");
 	boundary = mime_get_boundary(content_type);
 	free(content_type);
 
