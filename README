@@ -1,0 +1,29 @@
+第二题
+
+第一部，程序会先选择当前目录下的 articles 目录中的语料库抽取 90％ 样本进行训练
+以下显示训练进度
+training: alt.bible.prophecy
+training: comp.lang.javascript
+training: comp.lang.lisp
+training: comp.lang.python
+training: rec.games.bridge
+training: rec.photo.digital.slr-systems
+training: sci.lang
+training: sci.physics.relativity
+training end
+
+第二部，当程序训练完成之后，会将剩余 10% 的文件进行分类结果类似如下。
+
+file: articles/sci.lang/410021.txt
+article: sci.lang
+result: right
+
+第一行为要分类的文件，第二行为程序给出的分类名称，第三行为结果，如果
+如果结果为 right 则程序分类正确，wrong 为分类错误。
+
+第三题
+
+执行当前目录下的 mime 并指定文件名，程序将输出 multipart 的结构。
+
+
+所有程序均在 Mac OSX 10.6 上调试通过
