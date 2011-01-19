@@ -18,5 +18,4 @@ struct mime_part {
 };
 
 
-
 #endif /* _MIME_H_ */
