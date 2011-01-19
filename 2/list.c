@@ -1,3 +1,9 @@
+/*
+ * list.c 
+ *
+ * Copyright (c) WEI Zhicheng <zhicheng1988@gmail.com>
+ *
+ */
 
 #include "list.h"
 

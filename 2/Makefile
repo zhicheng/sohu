@@ -1,5 +1,5 @@
 CFLAGS = -g -Wall
-LDFLAGS = 
+LDFLAGS = -g
 CC = gcc
 
 all: main 

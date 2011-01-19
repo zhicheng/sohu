@@ -1,3 +1,9 @@
+/*
+ * list.h 
+ *
+ * Copyright (c) WEI Zhicheng <zhicheng1988@gmail.com>
+ *
+ */
 
 #ifndef _LIST_H_
 #define _LIST_H_

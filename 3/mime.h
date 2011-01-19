@@ -1,4 +1,9 @@
-
+/*
+ * mime.h
+ *
+ * Copyright (c) WEI Zhicheng <zhicheng1988@gmail.com>
+ *
+ */
 
 #ifndef _MIME_H_
 #define _MIME_H_

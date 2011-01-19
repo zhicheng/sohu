@@ -1,3 +1,9 @@
+/*
+ * main.c
+ *
+ * Copyright (c) WEI Zhicheng <zhicheng1988@gmail.com>
+ *
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -289,15 +295,16 @@ trainingall(char *dirpath)
 
 		for (j = 0; j < list_count(files); j++) {
 			file = (char *)list_get(files, j);
-			filepath = tmalloc(strlen(file) + strlen(dir) + strlen(ARTICLES_FOLDER) + 2);
+			filepath = tmalloc(strlen(file) + strlen(dir) + strlen(ARTICLES_FOLDER) + 3);
 			sprintf(filepath, "%s/%s/%s", ARTICLES_FOLDER, dir, file);
 			if ((rand() % 100) >= percent) {
-				sprintf(filepath, "%s\n", filepath);
 				fwrite(filepath, 1, strlen(filepath), tmpfp);
-				continue;
+				fwrite("\n", 1, 1, tmpfp);
+				goto next;
 			}
 			tranining(dir, filepath);
 			article_files_num[article_index] += 1;
+next:
 			free(filepath);
 		}
 		list_destroy(files);
@@ -325,6 +332,7 @@ main(void)
 		dir = (char *)list_get(dirs, i);
 		list_append(articles, dir);
 	}
+	list_destroy(dirs);
 
 	if ((tmpfp = fopen("temp.txt", "w+")) == NULL) {
 		fprintf(stderr, "tmpfile() fail\n");
@@ -345,6 +353,7 @@ main(void)
 		char *file2 = strdup(file);
 		strtok(file2, sep);
 		classify(file, strtok(NULL, sep));
+		free(file2);
 	}
 	list_destroy(dirs);
 

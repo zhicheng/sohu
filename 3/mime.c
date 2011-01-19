@@ -1,3 +1,9 @@
+/*
+ * mime.c
+ *
+ * Copyright (c) WEI Zhicheng <zhicheng1988@gmail.com>
+ *
+ */
 
 #include "mime.h"
 
@@ -103,11 +109,11 @@ mime_get_header_field(const char *header, const char *field)
 	ret = tmalloc(size + 1);
 	memset(ret, 0, size + 1);
 
-	tmp = strndup(ptr, size);
+	tmp = ptr = strndup(ptr, size);
 	// remove '\t', ' ', '\n', '\r'
 	for (tmp = strtok(tmp, sep); tmp != NULL; tmp = strtok(NULL, sep))
 		strcat(ret, tmp);
-	free(tmp);
+	free(ptr);
 
 	return ret;
 }
@@ -200,6 +206,18 @@ travel(struct mime_part *part, int dept)
 	}
 }
 
+void
+release(struct mime_part *part)
+{
+	if (part->first_child != NULL) {
+		release(part->first_child);
+	}
+	if (part->next_sibling != NULL) {
+		release(part->next_sibling);
+	}
+	free(part);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -263,8 +281,10 @@ main(int argc, char *argv[])
 	part->first_child = mime_get_part(buf, boundary);
 
 	free(boundary);
+	free(buf);
 
 	travel(part, 0);
+	release(part);
 
 	return 0;
 }
